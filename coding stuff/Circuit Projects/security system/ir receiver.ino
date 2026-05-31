@@ -3,6 +3,7 @@
 
 constexpr uint8_t IR_RECEIVE_PIN = 14;
 constexpr uint8_t BUZZER_PIN = 25;
+constexpr unsigned long SERIAL_BAUD = 115200;
 constexpr decode_type_t REMOTE_PROTOCOL = NEC;
 constexpr uint16_t REMOTE_ADDRESS = 0x0;
 constexpr uint16_t POWER_BUTTON_COMMAND = 0x45;
@@ -15,8 +16,12 @@ int peopleOutCount = 0;
 void handleRemoteCommand() {
   if (IrReceiver.decodedIRData.protocol != REMOTE_PROTOCOL ||
       IrReceiver.decodedIRData.address != REMOTE_ADDRESS) {
+    Serial.println("IR signal received, but protocol/address did not match.");
     return;
   }
+
+  Serial.print("IR command received: 0x");
+  Serial.println(IrReceiver.decodedIRData.command, HEX);
 
   if (IrReceiver.decodedIRData.command == POWER_BUTTON_COMMAND) {
     power = !power;
@@ -26,16 +31,22 @@ void handleRemoteCommand() {
     peopleInCount = 0;
     peopleOutCount = 0;
     Serial.println("Room counters reset to 0");
+  } else {
+    Serial.println("Button received, but it is not one of the two mapped buttons.");
   }
 }
 
 void setup() {
-  Serial.begin(9600);
+  Serial.begin(SERIAL_BAUD);
   delay(500);
 
   IrReceiver.begin(IR_RECEIVE_PIN, DISABLE_LED_FEEDBACK);
   pinMode(BUZZER_PIN, OUTPUT);
   digitalWrite(BUZZER_PIN, LOW);
+
+  Serial.println();
+  Serial.println("ESP32 IR receiver started");
+  Serial.println("Serial Monitor should be set to 115200 baud.");
 }
 
 void loop() {
