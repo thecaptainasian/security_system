@@ -3,8 +3,8 @@
 
 constexpr uint8_t IR_RECEIVE_PIN = 14;
 constexpr uint8_t BUZZER_PIN = 25;
-constexpr uint8_t TRIG_PIN = 12;
-constexpr uint8_t ECHO_PIN = 14;
+constexpr uint8_t TRIG_PIN = 18;
+constexpr uint8_t ECHO_PIN = 19;
 
 constexpr unsigned long SERIAL_BAUD = 115200;
 constexpr decode_type_t REMOTE_PROTOCOL = NEC;
@@ -23,6 +23,7 @@ constexpr float PERSON_CLEARED_CM = 90.0f;
 bool power = false;
 bool personPresent = false;
 bool buzzerActive = false;
+bool alarm = false;
 
 int peopleInCount = 0;
 int peopleOutCount = 0;
@@ -32,11 +33,13 @@ unsigned long lastStatusPrintAt = 0;
 
 void stopBuzzer() {
   buzzerActive = false;
+  alarm = false;
   digitalWrite(BUZZER_PIN, LOW);
 }
 
 void startBuzzer() {
   buzzerActive = true;
+  alarm = true;
   buzzerStartedAt = millis();
   digitalWrite(BUZZER_PIN, HIGH);
 }
@@ -138,6 +141,8 @@ void printStatus(float distanceCm) {
 
   Serial.print("power = ");
   Serial.print(power ? "ON" : "OFF");
+  Serial.print(" | alarm = ");
+  Serial.print(alarm ? "ON" : "OFF");
   Serial.print(" | peopleInCount = ");
   Serial.print(peopleInCount);
   Serial.print(" | peopleOutCount = ");
