@@ -1,6 +1,13 @@
 #include <Arduino.h>
 #include <IRremote.hpp>
 #include <math.h>
+#include <Wire.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
+#include <WiFi.h>
+#include "time.h"
+#define SCREEN_WIDTH 128
+#define SCREEN_HEIGHT 64
 
 constexpr uint8_t IR_RECEIVE_PIN = 14;
 constexpr uint8_t BUZZER_PIN = 25;
@@ -38,6 +45,20 @@ unsigned long Ultra_ActivationTime = 0;
 unsigned long lastEventTime = 0;
 unsigned long buzzerStartedAt = 0;
 unsigned long lastStatusPrintAt = 0;
+
+const char* ssid = "NewHome";
+const char* password = "19781978";
+
+unsigned long previousMillis = 0;
+const long interval = 100;
+
+char date[20];
+time_t rawtime;
+struct tm* timeinfo;
+
+Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
+
+const char* dayNames[] = {"SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"};
 
 void stopAlarm() {
   alarmActive = false;
@@ -250,6 +271,34 @@ void setup() {
   Serial.println();
   Serial.println("Combined security sketch started");
   Serial.println("Serial Monitor should be set to 9600 baud.");
+
+  //monitor setup
+
+  Serial.begin(9600);
+
+  WiFi.begin(ssid, password);
+  Serial.print("Connecting to WiFi");
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println(" Connected!");
+
+  if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) {
+    Serial.println(F("SSD1306 allocation failed"));
+    for (;;);
+  }
+
+  configTime(-28800, 3600, "pool.ntp.org");
+
+  Serial.print("Waiting for NTP time sync");
+  time_t now = time(nullptr);
+  while (now < 8 * 3600 * 2) {
+    delay(500);
+    Serial.print(".");
+    now = time(nullptr);
+  }
+  Serial.println(" Synced!");
 }
 
 void loop() {
@@ -262,5 +311,49 @@ void loop() {
   updateAlarm();
   printStatus(currentCm);
 
-  delay(50);
+   unsigned long currentMillis = millis();
+  // monitor code
+  if (currentMillis - previousMillis >= interval) {
+    previousMillis = currentMillis;
+
+    display.clearDisplay();
+    display.setTextColor(SSD1306_WHITE);
+
+    time(&rawtime);
+    timeinfo = localtime(&rawtime);
+
+    int hours   = timeinfo->tm_hour;
+    int minutes = timeinfo->tm_min;
+    int seconds = timeinfo->tm_sec;
+
+    // Determine AM/PM and convert to 12-hour format
+    const char* ampm = (hours >= 12) ? "PM" : "AM";
+    hours = hours % 12;
+    if (hours == 0) hours = 12;
+
+    // Display time (large)
+    sprintf(date, "%02d:%02d:%02d", hours, minutes, seconds);
+    display.setTextSize(2);
+    display.setCursor(0, 0);
+    display.print(date);
+
+    // Display AM/PM (small, top right)
+    display.setTextSize(1);
+    display.setCursor(104, 0);
+    display.print(ampm);
+
+    // Display day and date
+    int dayOfWeek = timeinfo->tm_wday;
+    int day       = timeinfo->tm_mday;
+    int month     = timeinfo->tm_mon + 1;
+
+    char actualDate[20];
+    sprintf(actualDate, "%s %02d/%02d", dayNames[dayOfWeek], month, day);
+    display.setCursor(0, 18);
+    display.print(actualDate);
+
+    display.display();
+  }
+
+
 }
